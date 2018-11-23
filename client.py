@@ -1,4 +1,3 @@
-import random
 import sys
 import json
 import asyncio
@@ -83,7 +82,7 @@ async def agent_loop(server_address = "localhost:8000", agent_name="82783"):
         #init agent properties 
         key = 'd'
         x,y = 3,15
-        goal=[3,14]
+        goal=[1,14]
         while True: 
             r = await websocket.recv()
             state = json.loads(r) #receive game state
