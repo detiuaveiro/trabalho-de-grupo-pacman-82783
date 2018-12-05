@@ -75,18 +75,18 @@ def trace_router( pacman, goal, map_coast = {}, control_rec = 0, get_pos = False
     
     goal = smaller_cost(pacman = pacman, vector = [[x,y] for x,y in moves if not mapa.is_wall((x,y))], map_coast = map_coast)
     control_rec+=1
-    
+
     return trace_router(pacman = pacman, goal = goal, map_coast = cur_map_coast, control_rec = control_rec, get_pos = get_pos)
 
 def high_ghost(pacman, moves, ghosts, second_objective, ghost_coast):
     move_coast=[0]*len(moves)                                                           
-    pos_ghosts = set([tuple(g[0]) for g in ghosts if not g[1]])                         #consider ghosts in the same position like a single ghost
+    pos_ghosts = set([tuple(g[0]) for g in ghosts if not g[1]])     #consider ghosts in the same position like a single ghost
     second_goal = trace_router(pacman, second_objective, ghost_coast, get_pos = True)
     
     #Case all the ghosts are farther the goal than the pacman, and this distance is far then 6 moves
-    ghosts_predct=[trace_router(pacman,g,get_pos=True) for g in pos_ghosts if calc_dist(pacman,g) < 100]
+    ghosts_predct=[trace_router(pacman,g,get_pos=True) for g in pos_ghosts if calc_dist(pacman,g) <= 49]
     #if next((False for g in pos_ghosts if calc_dist(pacman, g) > calc_dist(second_goal, g) and calc_dist(second_goal,g) <= 121), True): 
-    if second_goal not in ghosts_predct:
+    if second_goal not in ghosts_predct and tuple(second_goal) not in pos_ghosts:
         return second_goal
 
     for i in range(len(moves)):
@@ -105,18 +105,26 @@ async def agent_loop(server_address = "localhost:8000", agent_name="82783"):
         msg = await websocket.recv()
         game_properties = json.loads(msg) 
 
+        ghost_level = game_properties['ghosts_level']
+        global ghost_visibility
+        if ghost_level == 0:
+            ghost_visibility = 8
+        elif ghost_level == 1:
+            ghost_visibility = 16
+        else: 
+            ghost_visibility = 64
+
         global mapa 
         mapa = Map(game_properties['map'])
 
         #init agent properties 
-        x,y = 0,0
-        goal=[0,0]
-        ghost_coast= {}
-        move_coast = {}
+        lives=0
+
         while True: 
-            start_time = time.time()
+            
             r = await websocket.recv()
             state = json.loads(r) #receive game state
+            
             if len(state) == 1:
                 print(state['score'])
                 return            
@@ -124,6 +132,13 @@ async def agent_loop(server_address = "localhost:8000", agent_name="82783"):
                 print("GAME OVER")
                 print(state['score'])
                 return
+            if lives < state['lives']:
+                ghost_coast={}
+                move_coast={}
+                goal=[0,0]
+                x,y = 0,0
+            
+            lives=state['lives']
 
             cur_pos = [x,y]
             x,y = state['pacman']
@@ -131,7 +146,7 @@ async def agent_loop(server_address = "localhost:8000", agent_name="82783"):
 
             time_zombie = next(( g[2] for g in state['ghosts'] if g[1]),0) #If any ghosts is zombie, take its time to change its mode
 
-            if state['ghosts'] and calc_dist(state['pacman'], smaller_cost(state['pacman'], state['ghosts']) ) <= 16:
+            if state['ghosts'] and calc_dist(state['pacman'], smaller_cost(state['pacman'], state['ghosts']) ) <= ghost_visibility:
                 moves = [ x for x in generate_moves(state['pacman']) if not mapa.is_wall(x)]
                 if calc_dist(state['pacman'], smaller_cost(state['pacman'], state['ghosts'], hunter = True)) < time_zombie**2:
                     second_objective = smaller_cost(state['pacman'], state['ghosts'], hunter = True)
@@ -165,17 +180,15 @@ async def agent_loop(server_address = "localhost:8000", agent_name="82783"):
 
             if scape:
                 key = trace_router( pacman = (state['pacman']), goal = goal)
-                move_coast={}
+                if len(move_coast)>25:
+                    move_coast={}
             else:
                 cur_moves = [[x,y] for x,y in generate_moves(cur_pos) if not mapa.is_wall((x,y))]
                 moves = [[x,y] for x,y in generate_moves([x,y]) if not mapa.is_wall((x,y))]
                 if len(cur_moves) < len (moves) or cur_pos == [x,y]:
                     key = trace_router( pacman = (state['pacman']), goal = goal, map_coast = move_coast)
-                ghost_coast={}
-
-            
-            #print(time.time()-start_time)
-            #start_time = time.time()
+                if len(ghost_coast)>25:
+                    ghost_coast={}
 
             #send new key
             await websocket.send(json.dumps({"cmd": "key", "key": key}))
