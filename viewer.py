@@ -1,3 +1,4 @@
+import os
 import asyncio
 import pygame
 import random
@@ -193,7 +194,7 @@ async def main_loop(q):
         if "score" in state:
             text = str(state["score"])
             draw_info(SCREEN, text.zfill(6), (0,0))
-            text = str(state["player"])
+            text = str(state["player"]).rjust(32)
             draw_info(SCREEN, text, (4000,0))
         if "energy" in state:
             for x, y in state["energy"]:
@@ -216,10 +217,13 @@ async def main_loop(q):
         
 
 if __name__ == "__main__":
+    SERVER = os.environ.get('SERVER', 'localhost')
+    PORT = os.environ.get('PORT', '8000')
+    
     parser = argparse.ArgumentParser()
-    parser.add_argument("--server", help="IP address of the server", default="localhost")
-    parser.add_argument("--scale", help="reduce size of window by x times", type=int, default=1)
-    parser.add_argument("--port", help="TCP port", type=int, default=8000)
+    parser.add_argument("--server", help="IP address of the server", default=SERVER)
+    parser.add_argument("--scale", help="reduce size of window by x times", type=int, default=1.3)
+    parser.add_argument("--port", help="TCP port", type=int, default=PORT)
     args = parser.parse_args()
     SCALE = args.scale
 

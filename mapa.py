@@ -1,13 +1,21 @@
 import pygame
 import logging
 from enum import Enum
-
+import platform
 
 WALL = 0xff000000
 ENERGY = 0xffffd7d6
 BOOST = 0xffff2600
 PACMAN = 0xffd4fdd5
 GHOST = 0xff00f900
+
+if platform.system() == "Windows":
+    MASK = 0xFFFFFFFF
+    WALL = ~(WALL ^ MASK)
+    ENERGY = ~(ENERGY ^ MASK)
+    BOOST = ~(BOOST ^ MASK)
+    PACMAN = ~(PACMAN ^ MASK)
+    GHOST = ~(GHOST ^ MASK)
 
 class Tiles(Enum):
     ENERGY = 1
@@ -66,9 +74,9 @@ class Map:
 
     def is_wall(self, pos):
         x, y = pos
+    #    logging.debug("{} {:x}".format(pos, self.pxarray[x][y] ))
         if x not in range(self.hor_tiles) or y not in range(self.ver_tiles):
             return True
-    #    logging.debug("{} {:x}".format(pos, self.pxarray[x][y] ))
         if self.pxarray[x][y] == WALL:
             return True
         return False

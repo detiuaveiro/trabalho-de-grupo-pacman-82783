@@ -17,7 +17,7 @@ Ghost with multiple levels of difficulty:
      - Gives priority to spreading (go away from other ghosts)
 """
 __author__ = "Mário Antunes"
-__version__ = "2.0"
+__version__ = "3.0"
 __email__ = "mario.antunes@ua.pt"
 
 import random
@@ -26,7 +26,7 @@ import logging
 from enum import Enum
 from mapa import Map
 
-logger = logging.getLogger('Ghost')
+logger = logging.getLogger('Ghost2')
 logger.setLevel(logging.INFO)
 
 

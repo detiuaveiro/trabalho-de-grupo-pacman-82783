@@ -1,8 +1,10 @@
+import math
 import os
 import asyncio
 import json
 import logging
-from ghost import Ghost
+from ghost1 import Ghost as Ghost1
+from ghost2 import Ghost as Ghost2
 from mapa import Map, Tiles
 
 logger = logging.getLogger('Game')
@@ -23,12 +25,13 @@ MAX_HIGHSCORES = 10
 
 
 class Game:
-    def __init__(self, mapfile, n_ghosts=GHOSTS, lives=LIVES, timeout=TIMEOUT):
+    def __init__(self, mapfile, n_ghosts=GHOSTS, l_ghosts=1, lives=LIVES, timeout=TIMEOUT):
         logger.info("Game({}, {}, {})".format(mapfile, n_ghosts, lives))
         self._running = False
         self._timeout = timeout
         self._state = {}
         self._n_ghosts = n_ghosts
+        self._l_ghosts = l_ghosts
         self._initial_lives = lives
         self.map = Map(mapfile)
         
@@ -40,6 +43,7 @@ class Game:
     def info(self):
         return json.dumps({"map": self.map.filename,
                            "ghosts": self._n_ghosts,
+                           "ghosts_level": self._l_ghosts,
                            "fps": GAME_SPEED,
                            "timeout": TIMEOUT,
                            "lives": LIVES,
@@ -79,7 +83,11 @@ class Game:
         
         self.map = Map(self.map.filename)
         self._step = 0
-        self._ghosts = [Ghost(self.map) for g in range(0,self._n_ghosts)]
+        if self._l_ghosts <=2:
+            Ghost = Ghost1
+        else:
+            Ghost = Ghost2
+        self._ghosts = [Ghost(i, self.map, level=self._l_ghosts) for i in range(0,self._n_ghosts)]
         self._pacman = self.map.pacman_spawn
         self._energy = self.map.energy
         self._boost = self.map.boost
@@ -99,6 +107,7 @@ class Game:
     def save_highscores(self):
         #update highscores
         logger.debug("Save highscores")
+        logger.info("FINAL SCORE <%s>: %s", self._player_name, self.score)
         self._highscores.append((self._player_name, self.score))
         self._highscores = sorted(self._highscores, key=lambda s: -1*s[1])[:MAX_HIGHSCORES]
     
@@ -109,7 +118,11 @@ class Game:
         self._lastkeypress = key
 
     def update_pacman(self):
-        self._pacman = self.map.calc_pos(self._pacman, self._lastkeypress) 
+        try:
+            self._pacman = self.map.calc_pos(self._pacman, self._lastkeypress) 
+        except AssertionError:
+            logger.error("Invalid key <%s> pressed", self._lastkeypress)
+
         c = self.consume(self._pacman)
         if c == Tiles.ENERGY:
             self._score += POINT_ENERGY
@@ -123,6 +136,12 @@ class Game:
             self._score += ((self._timeout - self._step) // TIME_BONUS_STEPS) * POINT_TIME_BONUS 
             self.stop()
 
+    def in_range(self, p1, p2, d):
+        px, py = p1
+        gx, gy = p2
+        distance = math.hypot(px-gx, py-gy)
+        return distance <= d
+
     def collision(self):
         for g in self._ghosts:
             if g.pos == self._pacman and self._running:
@@ -135,6 +154,7 @@ class Game:
                         self._lives -= 1
                         self._pacman = self.map.pacman_spawn
                         g.respawn()
+                        [gg.respawn() for gg in self._ghosts if self.in_range(self._pacman, gg.pos, 2)]
                     if not self._lives:
                         self.stop()
                         return
@@ -157,7 +177,7 @@ class Game:
         self.collision()
        
         for ghost in self._ghosts:
-            ghost.update(self._state)
+            ghost.update(self._state, self._ghosts)
         self.collision()
         
         self._state = {"step": self._step,
