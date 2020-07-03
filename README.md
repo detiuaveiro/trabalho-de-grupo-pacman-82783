@@ -1,5 +1,9 @@
-# iia-ia-pacman
+### IA PACMAN
 Client-Server PACMAN clone
+
+# Description
+A Pacman game build over a client and server modules. The client module receive the game state each 100ms and need to reply with a moviment ('a','w','s','d') each interval. 
+To calculate the best movement the Pacman analize the postion of the points, boosters and ghosts in a algorithm and decide the direction to take.
 
 # Install
 
